@@ -1,0 +1,73 @@
+[
+  {
+    "name": "english_relevance_filter",
+    "query": "Qdrant port",
+    "packets": [
+      {"content": "Qdrant HTTP port is 6333.", "source": "docs", "relevance_score": 1.0},
+      {"content": "Lunch is rice and soup.", "source": "noise", "relevance_score": 0.0}
+    ],
+    "expected_sources": ["docs"],
+    "forbidden_sources": ["noise"],
+    "expected_fragments": ["6333"],
+    "minimum_query_coverage": 1.0
+  },
+  {
+    "name": "chinese_knowledge_retrieval",
+    "query": "情景记忆持久化",
+    "packets": [
+      {"content": "情景记忆正文由 SQLite 持久化，向量索引可选 Qdrant。", "source": "design", "kind": "evidence", "relevance_score": 0.95},
+      {"content": "情景记忆当前已经通过重启恢复测试。", "source": "notes", "kind": "note", "relevance_score": 0.9}
+    ],
+    "expected_sources": ["design", "notes"],
+    "expected_fragments": ["SQLite", "重启恢复测试"],
+    "minimum_query_coverage": 1.0
+  },
+  {
+    "name": "limited_docs_preserve_notes",
+    "query": "Qdrant 端口 验证",
+    "max_tokens": 512,
+    "source_max_tokens": {"docs": 45},
+    "packets": [
+      {"content": "部署说明包含集合设置、数据摄取、客户端初始化、索引参数、测试计划和服务监控等内容。日常运维应关注容量、日志和运行状况。Qdrant 端口为 6333。此段部署背景资料用于展示文档来源配额与压缩机制。", "source": "docs", "kind": "evidence", "relevance_score": 1.0},
+      {"content": "Qdrant 已通过本机真实兼容性验证。", "source": "notes", "kind": "note", "relevance_score": 0.9}
+    ],
+    "expected_sources": ["docs", "notes"],
+    "expected_fragments": ["6333", "真实兼容性验证"],
+    "minimum_query_coverage": 1.0,
+    "expect_compression": true
+  },
+  {
+    "name": "disabled_source",
+    "query": "Python SQLite",
+    "source_max_tokens": {"obsolete": 0},
+    "packets": [
+      {"content": "Python SQLite obsolete configuration.", "source": "obsolete", "relevance_score": 1.0},
+      {"content": "Python SQLite current configuration.", "source": "current", "relevance_score": 0.9}
+    ],
+    "expected_sources": ["current"],
+    "forbidden_sources": ["obsolete"],
+    "expected_fragments": ["current configuration"],
+    "minimum_query_coverage": 1.0
+  },
+  {
+    "name": "aggregate_source_cap",
+    "query": "Qdrant",
+    "source_max_tokens": {"docs": 8},
+    "packets": [
+      {"content": "Qdrant port 6333.", "source": "docs", "relevance_score": 1.0},
+      {"content": "Qdrant extra details.", "source": "docs", "relevance_score": 0.9},
+      {"content": "Qdrant testing complete.", "source": "notes", "relevance_score": 0.8}
+    ],
+    "expected_sources": ["docs", "notes"],
+    "expected_fragments": ["6333", "testing complete"],
+    "minimum_query_coverage": 1.0
+  },
+  {
+    "name": "no_relevant_evidence",
+    "query": "Neo4j graph",
+    "packets": [
+      {"content": "Lunch is rice and soup.", "source": "noise", "relevance_score": 0.0}
+    ],
+    "forbidden_sources": ["noise"]
+  }
+]

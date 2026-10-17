@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hello-agents-learning"
+version = "0.1.0"
+description = "一个用于学习 Agent 工作原理的轻量级 Python 框架"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0.0",
+    "pydantic>=2.0.0",
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+[project.optional-dependencies]
+local-embeddings = [
+    "sentence-transformers>=2.2.0",
+]
+vector-stores = [
+    "qdrant-client>=1.10.0",
+]
+graph-stores = [
+    "neo4j>=5.20.0",
+]
+document-loaders = [
+    "pypdf>=5.0.0",
+    "python-docx>=1.1.0",
+]
+multimodal = [
+    "sentence-transformers>=2.2.0",
+    "Pillow>=10.0.0",
+    "laion-clap>=1.1.6",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["hello_agents*"]

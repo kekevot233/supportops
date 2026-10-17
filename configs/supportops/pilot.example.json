@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "plan_id": "review-only-hashing-chat",
+  "runtime": {
+    "runtime_id": "review-only-pilot",
+    "execution": "external",
+    "model_id": "choose-chat-model",
+    "model_revision": "choose-revision",
+    "embedding_id": "hashing-blake2b",
+    "embedding_revision": "v1",
+    "temperature": 0.0,
+    "output_tokens": 1024
+  },
+  "chat": {
+    "model": "choose-chat-model",
+    "token_parameter": "max_completion_tokens",
+    "json_mode": false,
+    "timeout_seconds": 30.0
+  },
+  "chat_endpoint": {
+    "provider_id": "choose-provider",
+    "region": "choose-region",
+    "base_url": "https://chat.pilot.invalid/v1",
+    "allowed_host": "chat.pilot.invalid"
+  },
+  "limits": {
+    "max_chat_requests": 3,
+    "max_embedding_requests": 32,
+    "max_input_chars": 650000,
+    "max_reserved_output_tokens": 3072
+  },
+  "scope": {
+    "data_policy": "public_project_seed_only",
+    "corpus_sha256": "313784b1615fbe04088eeeac9440bee586593bf69253215a257250ad8f19dd47",
+    "dataset_sha256": "0888087108668eeda4181a4795790a3200e7c4c12add56a7fd0755005da64585",
+    "case_ids": ["RET-02", "REF-01", "INJ-01"]
+  }
+}

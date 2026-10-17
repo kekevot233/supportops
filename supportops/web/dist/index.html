@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SupportOps · 研发知识工作台</title>
+  <meta name="description" content="本机研发知识与技术支持演示工作台。资料管理、私有问答、原文引用与运行诊断。">
+  <link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="demo-banner">本地演示身份，非企业认证 <span>·</span> Fake 原文选择器，未调用真实模型，不具备语义判断 <span>·</span> 请勿上传敏感资料</div>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/"><span class="brand-icon">S</span><span>SupportOps<small>研发知识工作台</small></span></a>
+      <div class="nav-label">WORKSPACE</div>
+      <label class="sr-only" for="workspace">项目空间</label><select id="workspace" disabled><option>等待连接</option></select>
+      <nav aria-label="主导航"><button id="nav-chat" class="nav active" aria-current="page">◎ <span>知识问答</span></button><button id="nav-documents" class="nav">▤ <span>文档与任务</span></button></nav>
+      <section id="conversation-nav"><div class="nav-label">我的私有会话</div><form id="new-chat"><label class="sr-only" for="chat-title">新会话标题</label><input id="chat-title" maxlength="200" placeholder="新会话标题" value="研发支持问答" required><button type="submit" class="new-chat">＋ 新建会话</button></form><div id="chat-list" class="chat-list"></div></section>
+      <div class="sidebar-bottom"><span class="online-dot"></span> <span id="identity">未认证</span><small>Hashing 384 · 本地 SQLite<br>列表最多显示最近返回的 100 条</small><button id="disconnect" class="quiet">断开本次会话</button></div>
+    </aside>
+    <main>
+      <header class="topbar"><div><span class="eyebrow">ENGINEERING KNOWLEDGE</span><h1 id="page-title">知识问答</h1></div><div class="topbar-actions"><span id="role" class="tag">离线演示</span><button id="refresh" class="secondary">刷新数据</button></div></header>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <section id="locked" class="card locked"><h2>从终端的完整链接进入</h2><p>访问凭据缺失或已失效。请打开启动器输出的完整链接（含 #access=…）。凭据只保留在当前页面内存，刷新后需要重新打开链接。</p><p>仅输入端口地址不能登录；admin / reader 不是密码。切换演示身份需要另开一个本机服务进程。</p></section>
+      <div id="app" hidden>
+        <section id="chat-page" class="chat-layout">
+          <div class="conversation card"><div class="section-head"><div><h2 id="conversation-title">从可追溯的证据开始</h2><p>只显示本人会话 · 回答与引用绑定文档版本</p></div><span class="tag soft">PRIVATE</span></div>
+            <div id="messages" class="messages"><div class="empty"><div class="empty-symbol">◎</div><h3>让知识有来源，让回答可核对</h3><p>先新建会话，再输入问题。演示程序会选择一段原文，并不判断它是否足以回答问题。</p><button id="example-question" class="secondary">扫描版 PDF 为什么无法检索？</button></div></div>
+            <form id="ask" class="composer"><label for="question">向当前项目提问</label><textarea id="question" maxlength="2000" rows="3" placeholder="描述问题、版本和你已经尝试的步骤…" required></textarea><div class="composer-bottom"><small>证据只进入本轮临时上下文；不执行文档中的指令。</small><button id="send" type="submit">发送问题 ↗</button></div></form>
+          </div>
+          <aside class="inspector"><section class="card"><div class="section-head"><h2>原文证据</h2><span class="tag soft">SOURCE</span></div><div id="citation-panel" class="panel-body muted">点击回答下的 [D1] 等引用，查看经重新鉴权的原文、版本和字符位置。</div></section><section class="card"><div class="section-head"><h2>运行详情</h2><span class="tag soft">TRACE</span></div><div id="run-panel" class="panel-body muted">点击“查看运行”。Token 为本地估算；无供应商 usage 或实际费用。</div></section></aside>
+        </section>
+        <section id="documents-page" hidden>
+          <div class="stats"><div class="card"><small>空间内文档</small><strong id="document-count">—</strong></div><div class="card"><small>存在已发布版本</small><strong id="ready-count">—</strong></div><div class="card"><small>等待 / 执行中任务</small><strong id="pending-count">—</strong></div></div>
+          <section class="card writer" id="upload-card"><div class="section-head"><div><h2 id="upload-heading">接入知识文档</h2><p>仅 UTF-8 TXT / Markdown，最大 256000 字节；接入后显式处理索引任务。</p></div></div><form id="upload" class="upload-form"><label>选择文件<input id="upload-file" type="file" accept=".txt,.md,.markdown"></label><label>文档标题<input id="upload-title" maxlength="200" placeholder="例如：开发环境与排障手册" required></label><label>文件名<input id="upload-filename" maxlength="200" value="guide.md" required></label><label class="wide">正文（纯文本显示，不执行 HTML / Markdown）<textarea id="upload-content" rows="4" placeholder="# 安装说明" required></textarea></label><div class="wide form-actions"><button id="upload-submit" type="submit">提交索引任务</button><button id="cancel-update" type="button" class="secondary" hidden>取消更新</button><small id="upload-state">新文档</small></div></form></section>
+          <section class="card"><div class="section-head"><div><h2>知识资料</h2><p>新版本失败时保留已发布版本；删除将清理原件与所有索引。</p></div></div><div class="table-wrap"><table><thead><tr><th>文档</th><th>最新版本 / 状态</th><th>当前发布版本</th><th>操作</th></tr></thead><tbody id="document-list"></tbody></table></div></section>
+          <section class="card jobs"><div class="section-head"><div><h2>索引任务</h2><p>手动处理一次只领取一个任务；无常驻后台 worker。</p></div><button id="process-job" class="writer">处理下一个任务</button></div><div class="table-wrap"><table><thead><tr><th>任务 / 文档</th><th>状态</th><th>尝试次数</th><th>错误 / 操作</th></tr></thead><tbody id="job-list"></tbody></table></div></section>
+        </section>
+      </div>
+      <footer>SupportOps / LOCAL WORKBENCH <span>教程学习与应用扩展项目 · 非生产部署</span></footer>
+    </main>
+  </div>
+</body>
+</html>

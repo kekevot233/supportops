@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "corpus_id": "supportops-project-seed-v1",
+  "as_of": "2026-10-15",
+  "origin": "curated_project_documentation",
+  "documents": [
+    {"id": "kb-overview", "path": "overview.md", "title": "HelloAgent 框架与业务边界", "source_refs": ["README.md", "PROJECT_SUMMARY.md"]},
+    {"id": "kb-runtime", "path": "runtime.md", "title": "安装与离线 Embedding", "source_refs": ["pyproject.toml", "hello_agents/embeddings/hashing.py", "README.md"]},
+    {"id": "kb-documents", "path": "documents.md", "title": "文档加载和格式限制", "source_refs": ["hello_agents/rag/loaders.py", "README.md"]},
+    {"id": "kb-ingestion", "path": "ingestion.md", "title": "摄取更新与索引版本", "source_refs": ["hello_agents/rag/knowledge_base.py", "hello_agents/rag/chunking.py"]},
+    {"id": "kb-citations", "path": "citations.md", "title": "检索重排与原文引用", "source_refs": ["hello_agents/rag/models.py", "hello_agents/rag/rerankers.py", "hello_agents/rag/knowledge_base.py"]},
+    {"id": "kb-context", "path": "context.md", "title": "临时上下文与请求预算", "source_refs": ["hello_agents/rag/context.py", "hello_agents/core/agent.py", "hello_agents/context/builder.py", "hello_agents/context/request_budget.py"]},
+    {"id": "kb-memory", "path": "memory.md", "title": "工作记忆情景记忆与语义记忆", "source_refs": ["README.md", "hello_agents/memory/types/working.py", "hello_agents/memory/types/episodic.py", "hello_agents/memory/types/semantic.py"]},
+    {"id": "kb-stores", "path": "stores.md", "title": "SQLite Qdrant Neo4j 与集成验证", "source_refs": ["README.md", "test_real_stores.py", "hello_agents/vector_stores/qdrant.py"]},
+    {"id": "kb-tools", "path": "tools.md", "title": "工具调用协议与事务式历史", "source_refs": ["hello_agents/agents/simple_agent.py", "hello_agents/core/llm.py", "hello_agents/tools/registry.py"]},
+    {"id": "kb-safety", "path": "safety.md", "title": "凭据只读探索与检查点安全", "source_refs": ["hello_agents/core/llm.py", "hello_agents/tools/builtin/terminal.py", "hello_agents/context/checkpoints.py", "README.md"]}
+  ]
+}

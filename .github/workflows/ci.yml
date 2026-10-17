@@ -1,0 +1,48 @@
+name: Offline checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full_regression:
+        description: Run all framework and legacy tests (offline)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  supportops:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHON_DOTENV_DISABLED: "1"
+      HELLO_AGENTS_RUN_REAL_STORES: "0"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install -r requirements-ci.txt
+      - run: python -m pip install -e .
+      - name: Release safety patterns and inventory
+        run: python scripts/check_release.py
+      - name: Release preparation tests
+        run: python -m unittest test_release_preparation -v
+      - name: SupportOps offline tests
+        run: python -m unittest discover -p 'test_supportops*.py' -v
+      - name: Retrieval smoke
+        run: python -m supportops evaluate --output outputs/ci_retrieval.json
+      - name: Additional dependencies for optional full regression
+        if: github.event_name == 'workflow_dispatch' && inputs.full_regression
+        run: python -m pip install -r requirements-legacy-test.txt
+      - name: Optional full offline regression
+        if: github.event_name == 'workflow_dispatch' && inputs.full_regression
+        run: python -m unittest discover -p 'test_*.py' -v

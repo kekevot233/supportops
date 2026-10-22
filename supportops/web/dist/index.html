@@ -4,16 +4,16 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SupportOps · 研发知识工作台</title>
   <meta name="description" content="本机研发知识与技术支持演示工作台。资料管理、私有问答、原文引用与运行诊断。">
-  <link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script>
+  <link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/tickets.css"><script src="/app.js" defer></script><script src="/tickets.js" defer></script>
 </head>
 <body>
-  <div class="demo-banner">本地演示身份，非企业认证 <span>·</span> Fake 原文选择器，未调用真实模型，不具备语义判断 <span>·</span> 请勿上传敏感资料</div>
+  <div class="demo-banner" id="model-banner">本地演示身份，非企业认证 <span>·</span> 等待服务端确认模型模式 <span>·</span> 请勿输入或上传敏感资料</div>
   <div class="shell">
     <aside class="sidebar">
       <a class="brand" href="/"><span class="brand-icon">S</span><span>SupportOps<small>研发知识工作台</small></span></a>
       <div class="nav-label">WORKSPACE</div>
       <label class="sr-only" for="workspace">项目空间</label><select id="workspace" disabled><option>等待连接</option></select>
-      <nav aria-label="主导航"><button id="nav-chat" class="nav active" aria-current="page">◎ <span>知识问答</span></button><button id="nav-documents" class="nav">▤ <span>文档与任务</span></button></nav>
+      <nav aria-label="主导航"><button id="nav-chat" class="nav active" aria-current="page">◎ <span>知识问答</span></button><button id="nav-tickets" class="nav">▢ <span>工单助手</span></button><button id="nav-documents" class="nav">▤ <span>文档与任务</span></button></nav>
       <section id="conversation-nav"><div class="nav-label">我的私有会话</div><form id="new-chat"><label class="sr-only" for="chat-title">新会话标题</label><input id="chat-title" maxlength="200" placeholder="新会话标题" value="研发支持问答" required><button type="submit" class="new-chat">＋ 新建会话</button></form><div id="chat-list" class="chat-list"></div></section>
       <div class="sidebar-bottom"><span class="online-dot"></span> <span id="identity">未认证</span><small>Hashing 384 · 本地 SQLite<br>列表最多显示最近返回的 100 条</small><button id="disconnect" class="quiet">断开本次会话</button></div>
     </aside>
@@ -24,10 +24,30 @@
       <div id="app" hidden>
         <section id="chat-page" class="chat-layout">
           <div class="conversation card"><div class="section-head"><div><h2 id="conversation-title">从可追溯的证据开始</h2><p>只显示本人会话 · 回答与引用绑定文档版本</p></div><span class="tag soft">PRIVATE</span></div>
-            <div id="messages" class="messages"><div class="empty"><div class="empty-symbol">◎</div><h3>让知识有来源，让回答可核对</h3><p>先新建会话，再输入问题。演示程序会选择一段原文，并不判断它是否足以回答问题。</p><button id="example-question" class="secondary">扫描版 PDF 为什么无法检索？</button></div></div>
-            <form id="ask" class="composer"><label for="question">向当前项目提问</label><textarea id="question" maxlength="2000" rows="3" placeholder="描述问题、版本和你已经尝试的步骤…" required></textarea><div class="composer-bottom"><small>证据只进入本轮临时上下文；不执行文档中的指令。</small><button id="send" type="submit">发送问题 ↗</button></div></form>
+            <div id="messages" class="messages"><div class="empty"><div class="empty-symbol">◎</div><h3>让知识有来源，让回答可核对</h3><p id="model-intro">先确认模型模式，再新建会话并输入问题。</p><button id="example-question" class="secondary">扫描版 PDF 为什么无法检索？</button></div></div>
+            <form id="ask" class="composer"><label for="question">向当前项目提问</label><textarea id="question" maxlength="2000" rows="3" placeholder="描述问题、版本和你已经尝试的步骤…" required></textarea><small id="model-budget">等待确认模型模式和请求限额。</small><div class="composer-bottom"><small id="model-consent">证据只进入本轮临时上下文；不执行文档中的指令。</small><button id="send" type="submit">发送问题 ↗</button></div></form>
           </div>
           <aside class="inspector"><section class="card"><div class="section-head"><h2>原文证据</h2><span class="tag soft">SOURCE</span></div><div id="citation-panel" class="panel-body muted">点击回答下的 [D1] 等引用，查看经重新鉴权的原文、版本和字符位置。</div></section><section class="card"><div class="section-head"><h2>运行详情</h2><span class="tag soft">TRACE</span></div><div id="run-panel" class="panel-body muted">点击“查看运行”。Token 为本地估算；无供应商 usage 或实际费用。</div></section></aside>
+        </section>
+        <section id="tickets-page" hidden>
+          <p id="ticket-model-budget" class="ticket-budget muted">等待确认模型模式和请求限额。</p>
+          <div class="ticket-layout">
+            <aside class="ticket-sidebar">
+              <section class="card"><div class="section-head"><div><h2>提交支持工单</h2><p>仅本人可见 · 不自动执行诊断或关闭工单</p></div></div>
+                <form id="ticket-create" class="ticket-form">
+                  <label>标题<input id="ticket-title" maxlength="200" placeholder="例如：扫描版 PDF 无法检索" required></label>
+                  <label>问题描述<textarea id="ticket-description" maxlength="1600" rows="5" placeholder="现象、版本、已尝试的步骤；请勿输入敏感资料。" required></textarea></label>
+                  <label>分类（人工选择）<select id="ticket-category"><option value="general">一般支持</option><option value="installation">安装部署</option><option value="documents">文档检索</option><option value="memory">记忆存储</option><option value="tools">工具调用</option></select></label>
+                  <label>优先级（人工选择）<select id="ticket-priority"><option value="normal">普通</option><option value="low">低</option><option value="high">高</option></select></label>
+                  <button type="submit">创建工单</button><small>创建、确认和记录结果不会调用模型；只有显式生成建议可能付费。</small>
+                </form>
+              </section>
+              <section class="card"><div class="section-head"><h2>我的工单</h2><span id="ticket-count" class="tag">0</span></div><div id="ticket-list" class="ticket-list"></div></section>
+            </aside>
+            <div><section class="card"><div class="section-head"><div><h2 id="ticket-detail-title">从问题到可追溯的处理记录</h2><p>提交 → 引用建议 → 人工确认 → 记录结果</p></div></div><div id="ticket-detail" class="ticket-detail"><p class="muted">创建或选择本人提交的工单。助手建议不是已执行的修复。</p></div></section>
+              <div class="ticket-inspectors"><section class="card"><div class="section-head"><h2>建议原文</h2></div><div id="ticket-evidence" class="panel-body muted">点击建议引用重新读取原文。</div></section><section class="card"><div class="section-head"><h2>建议运行</h2></div><div id="ticket-run" class="panel-body muted">查看建议对应的模型运行与用量。</div></section></div>
+            </div>
+          </div>
         </section>
         <section id="documents-page" hidden>
           <div class="stats"><div class="card"><small>空间内文档</small><strong id="document-count">—</strong></div><div class="card"><small>存在已发布版本</small><strong id="ready-count">—</strong></div><div class="card"><small>等待 / 执行中任务</small><strong id="pending-count">—</strong></div></div>

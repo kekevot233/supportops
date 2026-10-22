@@ -179,7 +179,12 @@ class ChatService:
                             raise SupportOpsError("RUN_EXPIRED")
                         connection.execute("UPDATE answer_runs SET model_attempts=1,estimated_input_tokens=? WHERE workspace_id=? AND id=?",
                                            (diagnostics["estimated_input_tokens"], workspace_id, begun["run_id"]))
-                generated = self._engine.generate(begun["question"], begun["history"], result, diagnostics, on_invoke=before_invoke)
+                options = {}
+                if self._engine.mode == "local_deepseek":
+                    options["invocation_context"] = {"owner": begun["owner_id"], "workspace": workspace_id,
+                        "conversation": conversation_id, "run_id": begun["run_id"]}
+                generated = self._engine.generate(begun["question"], begun["history"], result, diagnostics,
+                                                   on_invoke=before_invoke, **options)
             finally:
                 diagnostics["generation_ms"] = (time.perf_counter() - step) * 1000
             with self._scope(credential, workspace_id, write=True) as (connection, identity):
@@ -260,5 +265,8 @@ class ChatService:
                 raise SupportOpsError("NOT_FOUND")
             fields = ("id", "conversation_id", "request_id", "state", "error_code", "model_mode", "model_attempts",
                       "estimated_input_tokens", "estimated_output_tokens", "retrieval_ms", "generation_ms", "total_ms")
-            return {**{field: row[field] for field in fields}, "usage_source": "local_estimate" if row["model_attempts"] else "not_called",
-                    "actual_usage": None, "cost": None}
+            result = {**{field: row[field] for field in fields}, "usage_source": "local_estimate" if row["model_attempts"] else "not_called",
+                      "actual_usage": None, "cost": None}
+            if self._engine.mode == "local_deepseek":
+                result.update(self._engine.llm.budget.run_view(run_id))
+            return result

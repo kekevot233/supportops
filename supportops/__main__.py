@@ -31,17 +31,55 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--output", type=Path)
     answers = subparsers.add_parser("evaluate-answers", help="离线回答 smoke；如实记录 Fake 的事实、拒答和注入失败")
     answers.add_argument("--output", type=Path)
+    quality_plan_parser = subparsers.add_parser("answer-quality-plan", help="只验证开发集与冻结保留集摘要，不运行保留集")
+    quality_plan_parser.add_argument("--output", type=Path)
+    quality = subparsers.add_parser("evaluate-answer-quality", help="离线 Fake 完整性开发评测；保留集需显式开封且仅一次")
+    quality.add_argument("--suite", choices=("development", "holdout"), default="development")
+    quality.add_argument("--prompt-profile", choices=("extractive-v1", "complete-evidence-v2"), default="complete-evidence-v2")
+    quality.add_argument("--open-holdout", action="store_true")
+    quality.add_argument("--output", type=Path)
     preflight = subparsers.add_parser("preflight-pilot", help="无密钥、无网络的 1～3 题配置和预算预检；不执行试跑")
     preflight.add_argument("--config", type=Path, required=True)
     preflight.add_argument("--output", type=Path)
     live = subparsers.add_parser("run-deepseek-pilot", help="显式授权的单次三题试跑，读取专用凭据；不接网页")
     live.add_argument("--authorize-live", action="store_true")
     live.add_argument("--output", type=Path, required=True)
+    regression = subparsers.add_parser("run-deepseek-regression", help="显式授权的完整32题真实对照，累计5元账本；不接网页")
+    regression.add_argument("--authorize-live", action="store_true")
+    regression.add_argument("--output", type=Path, required=True)
     configure_demo_parser(subparsers)
     from .local_server import configure_serve_parser
     configure_serve_parser(subparsers)
+    from .web_live import configure_live_parser
+    configure_live_parser(subparsers)
     args = parser.parse_args(argv)
     try:
+        if args.command == "serve-live":
+            from .web_live import run_live_server
+            return run_live_server(args, project_root=Path(__file__).resolve().parent.parent)
+        if args.command in {"answer-quality-plan", "evaluate-answer-quality"}:
+            from .qa_evaluation import resolve_answer_report
+            from .qa_quality import evaluate_quality_suite, quality_plan
+            root = Path(__file__).resolve().parent.parent
+            target = resolve_answer_report(args.output, project_root=root) if args.output else None
+            if target is not None and target.exists():
+                raise SupportOpsError("CONFLICT")
+            payload = quality_plan() if args.command == "answer-quality-plan" else evaluate_quality_suite(
+                args.suite, prompt_profile=args.prompt_profile, open_holdout=args.open_holdout)
+            rendered = json.dumps(payload, ensure_ascii=True, indent=2, allow_nan=False)
+            if target:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with target.open("x", encoding="utf-8") as handle:
+                    handle.write(rendered + "\n")
+            print(rendered)
+            return 0 if args.command == "answer-quality-plan" or payload["summary"]["quality_gate_passed"] else 1
+        if args.command == "run-deepseek-regression":
+            from .live_regression import run_regression
+            payload = run_regression(Path(__file__).resolve().parent.parent, args.output, authorized=args.authorize_live)
+            print(json.dumps({"authorization_id": payload["authorization_id"], "summary": payload["summary"],
+                              "usage": payload["usage"], "cumulative_budget": payload["cumulative_budget"],
+                              "report_written": True}, ensure_ascii=True, indent=2))
+            return 0 if payload["summary"]["quality_gate_passed"] else 1
         if args.command == "run-deepseek-pilot":
             from .live_pilot import run_live_pilot
             payload = run_live_pilot(Path(__file__).resolve().parent.parent, args.output, authorized=args.authorize_live)

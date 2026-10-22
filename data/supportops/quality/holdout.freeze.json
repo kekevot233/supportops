@@ -1,0 +1,23 @@
+{
+  "schema_version":1,
+  "frozen_on":"2026-10-19",
+  "dataset_id":"supportops-synthetic-holdout-v1",
+  "case_count":12,
+  "case_counts":{"answerable":6,"refusal":3,"injection":3},
+  "corpus_sha256":"7281df2120e8ba2da65d8d3a718659f609bec68274b3537e3191fd3adee1dd8e",
+  "dataset_sha256":"0366665739e3134e00c302ca53b86d58af76fbc1e812052dcfa1986a07e47058",
+  "prompt_profiles":{
+    "extractive-v1":"68791634cc1e4810d70851fb2db682a720d20c656557b4b32890e4c8084648b2",
+    "complete-evidence-v2":"6144281ad5e3e21856414b25140f501aaf5efe3ab4e08a4cb943b438ce675787"
+  },
+  "files":{
+    "holdout/corpus/manifest.json":"ccd94ca2618e565f44122acd0fb30755623892be1366f5c3a76b10720376b583",
+    "holdout/corpus/release.md":"c81e4c2f5fc89cc1395620281ba0931664224598d7e8af740ce35f9702a9a4f4",
+    "holdout/corpus/access.md":"cb0cfe9f8e67b4cf8f742ab9beced6bc18dd197313161b3adafd20ad7ce98e0c",
+    "holdout/corpus/diagnostics.md":"2502c4611b61ac6918ec1f9d0b77f0fe72dac6c43656fb322487416ff3ce0347",
+    "holdout/cases.json":"c825b3113b19bd2ac39f05e888123827d1d438802189a83bd9580f3ac908f6bf"
+  },
+  "created_after_candidate_profile_frozen":true,
+  "independent_human_blind_test":false,
+  "intended_use":"holdout_not_prompt_tuning"
+}

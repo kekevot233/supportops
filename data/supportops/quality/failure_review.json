@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-10-19",
+  "reviewer": "AI-assisted source and code review; not independent human adjudication",
+  "source_report_reference": "outputs/supportops/deepseek_full32_20261018.json",
+  "source_report_canonical_sha256": "3e7df0a0f8cefb92e31a829ddff631db01afcb1fc2ad8940b1fb4cf699d557b5",
+  "original_corpus_sha256": "313784b1615fbe04088eeeac9440bee586593bf69253215a257250ad8f19dd47",
+  "original_dataset_sha256": "0888087108668eeda4181a4795790a3200e7c4c12add56a7fd0755005da64585",
+  "original_real_result": {"passed":30,"total":32,"strict_quality_gate_passed":false,"unchanged":true},
+  "cases": [
+    {
+      "id":"RET-08",
+      "observed_quote":"DocumentKnowledgeBase.ingest 默认拒绝已经存在的文档 ID。更新同一文档时需要显式\n传入 replace=True。",
+      "source_document_id":"kb-ingestion",
+      "source_ref":"hello_agents/rag/knowledge_base.py",
+      "direct_answer_supported":true,
+      "strict_baseline_passed":false,
+      "missing_fragments":["unchanged"],
+      "assessment":"默认拒绝与 replace=True 已覆盖直接提问；unchanged 是允许替换且同内容的隐含子场景。严格标注比问题表述更宽，不能把缺少它等同于参数答错。",
+      "annotation_scope":"implicit_boundary_fact",
+      "development_followup":"RET-81"
+    },
+    {
+      "id":"RET-19",
+      "observed_quote":"EpisodicMemory 是情景记忆，组合 SQLite 正文和可替换向量索引，支持重启后恢复正文。",
+      "source_document_id":"kb-memory",
+      "source_ref":"hello_agents/memory/types/episodic.py",
+      "direct_answer_supported":true,
+      "strict_baseline_passed":false,
+      "missing_fragments":["内存向量库需要重建"],
+      "assessment":"正文可恢复的直接答案有依据；原问题没有明确询问检索索引恢复。内存索引重建是有价值的操作边界，但严格标注把这一扩展要求也计入通过条件。",
+      "annotation_scope":"implicit_boundary_fact",
+      "development_followup":"RET-82"
+    }
+  ],
+  "decision":"Keep original gold, threshold, 30/32 report and request bindings unchanged; make boundary requirements explicit only in separate development cases. No rescore or model calls."
+}

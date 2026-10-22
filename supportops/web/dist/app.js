@@ -2,7 +2,7 @@
 // 文档、回答和错误始终通过 textContent 输出；不解析 HTML，不插入不可信 URL。
 const $ = (id) => document.getElementById(id);
 const el = (tag, text, className) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = String(text); if (className) node.className = className; return node; };
-const state = {token: new URLSearchParams(location.hash.slice(1)).get("access"), workspace: null, chat: null, workspaces: [], update: null, busy: false, pending: null, epoch: 0};
+const state = {token: new URLSearchParams(location.hash.slice(1)).get("access"), workspace: null, chat: null, workspaces: [], update: null, busy: false, pending: null, epoch: 0, session: null};
 history.replaceState(null, "", "/");
 // 从锁定页面重新粘贴完整启动链接时，浏览器可能只执行 fragment 导航；重新加载以消费新凭据。
 window.addEventListener("hashchange",()=>{if(new URLSearchParams(location.hash.slice(1)).has("access"))location.reload();});
@@ -17,12 +17,28 @@ async function api(url, body, method = body === undefined ? "GET" : "POST") {
   return payload.data;
 }
 function notice(text, error=false) { $("notice").replaceChildren(el("span",text)); $("notice").className = `notice${error ? " error" : ""}`; $("notice").hidden = !text; }
+function renderModel(session) {
+  state.session=session;
+  const live=session.model_mode==="local_deepseek", guard=session.financial_guard;
+  $("model-banner").textContent=live ? "本机真实 DeepSeek · 问题、相关对话和公开证据将发送给供应商并产生费用 · 禁止敏感内容、代理或公网部署" : "本地演示身份，非企业认证 · Fake 原文选择器，未调用真实模型，不具备语义判断 · 请勿上传敏感资料";
+  $("model-budget").textContent=live ? `Chat 预留次数 ${guard.request_attempts}/${guard.max_requests} · 本次启动会话预留 ¥${guard.session_reserved_cny}/¥${guard.session_budget_cny} · 单次预留上限 ¥${guard.request_budget_cny} · 累计剩余可预留 ¥${guard.cumulative_available_cny}${guard.stopped ? " · 已停止，需先核对记录" : ""}（均非账单）` : "Fake 离线模式 · 无付费模型调用";
+  $("ticket-model-budget").textContent=$("model-budget").textContent;
+  $("model-consent").textContent=live ? "发送前需确认公开内容；仅检索公开种子资料，不自动重试，不调用在线 Embedding。" : "证据只进入本轮临时上下文；不执行文档中的指令。";
+  if($("model-intro"))$("model-intro").textContent=live ? "真实模型从公开资料中摘取回答并返回引用；请核对原文，不保证结论正确。" : "先新建会话，再输入问题。Fake 选择原文，不判断是否足以回答。";
+}
+async function refreshModel() { renderModel(await api("/api/session")); }
+async function confirmModelRequest() {
+  if(state.session?.model_mode!=="local_deepseek")return true;
+  await refreshModel();
+  if(state.session.financial_guard.stopped)throw new Error("真实会话已停止，请先核对运行与费用记录；不自动重试。");
+  return confirm("本次将把问题、相关历史对话和公开资料证据发送给 DeepSeek，并产生费用。确认不含任何敏感或个人信息并发送？");
+}
 function showError(error) {
   notice(error.message || "连接失败，请检查本机服务。",true);
   if (error.run) $("notice").append(button("查看失败运行",()=>showRun(error.run)));
   if (error.code === "UNAUTHENTICATED") lock();
 }
-function lock() { state.token = null; state.epoch++; state.chat = null; state.pending=null;state.workspace=null;state.workspaces=[];resetUpload();$("question").value="";$("app").hidden = true; $("locked").hidden = false; for(const id of ["chat-list","messages","citation-panel","run-panel","document-list","job-list","workspace"])$(id).replaceChildren(); $("identity").textContent="未认证"; $("workspace").disabled = true; }
+function lock() { state.token = null; state.epoch++; state.chat = null; state.pending=null;state.workspace=null;state.workspaces=[];window.SupportOpsTickets?.reset();resetUpload();$("question").value="";$("app").hidden = true; $("locked").hidden = false; for(const id of ["chat-list","messages","citation-panel","run-panel","document-list","job-list","workspace"])$(id).replaceChildren(); $("identity").textContent="未认证"; $("workspace").disabled = true; }
 async function task(action) {
   if (state.busy) return;
   state.busy = true;
@@ -32,20 +48,22 @@ async function task(action) {
   finally { state.busy=false; controls.forEach(x=>{if(x.isConnected)x.disabled=false;}); document.querySelector(".shell").inert=false; $("app").removeAttribute("aria-busy"); if (!state.token) $("workspace").disabled=true; }
 }
 function tab(name) {
-  $("chat-page").hidden = name !== "chat"; $("documents-page").hidden = name !== "documents";
-  $("conversation-nav").hidden = name !== "chat"; $("page-title").textContent = name === "chat" ? "知识问答" : "文档与任务";
-  for (const item of ["chat","documents"]) { $("nav-"+item).classList.toggle("active",item===name); if(item===name) $("nav-"+item).setAttribute("aria-current","page"); else $("nav-"+item).removeAttribute("aria-current"); }
+  for(const item of ["chat","documents","tickets"])$(item+"-page").hidden=item!==name;
+  $("conversation-nav").hidden = name !== "chat"; $("page-title").textContent = {chat:"知识问答",documents:"文档与任务",tickets:"工单助手"}[name];
+  for (const item of ["chat","documents","tickets"]) { $("nav-"+item).classList.toggle("active",item===name); if(item===name) $("nav-"+item).setAttribute("aria-current","page"); else $("nav-"+item).removeAttribute("aria-current"); }
 }
 function emptyChat() { $("messages").replaceChildren(el("div","新建或选择一个私有会话，即可开始提问。","empty muted")); $("conversation-title").textContent="从可追溯的证据开始"; $("citation-panel").textContent="点击引用查看原文。"; $("run-panel").textContent="点击“查看运行”查看诊断。"; }
 async function refresh() {
-  if (!state.workspace) { $("messages").replaceChildren(el("p","当前身份没有可访问空间。")); return; }
+  window.SupportOpsTickets?.invalidate();
+  if (!state.workspace) { window.SupportOpsTickets?.reset();$("messages").replaceChildren(el("p","当前身份没有可访问空间。")); return; }
   const epoch=state.epoch;
-  const [docs,jobs,chats] = await Promise.all([api(path("/documents")),api(path("/jobs")),api(path("/conversations"))]);
+  const [docs,jobs,chats] = await Promise.all([api(path("/documents")),api(path("/jobs")),api(path("/conversations")),refreshModel()]);
   if(epoch !== state.epoch) return;
   const role = state.workspaces.find(x=>x.id===state.workspace)?.role;
   $("role").textContent=`${role || "—"} · 本机演示`;
   document.querySelectorAll(".writer").forEach(x=>x.hidden=!(["admin","editor"].includes(role)));
   renderDocuments(docs,role); renderJobs(jobs,role); renderChats(chats);
+  await window.SupportOpsTickets?.refresh();
   if (state.chat) await loadChat(state.chat);
 }
 function renderChats(chats) {
@@ -85,16 +103,17 @@ async function appendAnswer(node,answer) {
   node.append(feedback);
 }
 function details(panel,fields) { const dl=el("dl");for(const [key,value] of fields){dl.append(el("dt",key),el("dd",value===null?"未提供":value));}panel.replaceChildren(dl); }
-async function showCitation(answer,label) {
-  $("citation-panel").textContent="正在重新鉴权与读取来源…";
+async function showCitation(answer,label,panelId="citation-panel") {
+  const panel=$(panelId);panel.textContent="正在重新鉴权与读取来源…";
   try {const data=await api(path(`/answers/${answer}/citations/${label}`)),chunk=data.chunk;
-    details($("citation-panel"),[["引用",`[${label}] ${data.is_current?"当前版本":"历史版本"}`],["标题",chunk.title || chunk.document_id],["版本",data.version_id],["章节",chunk.section || "—"],["字符区间",`${chunk.start_char} – ${chunk.end_char}`]]);
-    $("citation-panel").append(el("div",chunk.content,"quote"));
-  } catch(error) { $("citation-panel").textContent="来源不可访问或已失效；不会用新版本替代旧引用。";throw error; }
+    details(panel,[["引用",`[${label}] ${data.is_current?"当前版本":"历史版本"}`],["标题",chunk.title || chunk.document_id],["版本",data.version_id],["章节",chunk.section || "—"],["字符区间",`${chunk.start_char} – ${chunk.end_char}`]]);
+    panel.append(el("div",chunk.content,"quote"));
+  } catch(error) { panel.textContent="来源不可访问或已失效；不会用新版本替代旧引用。";throw error; }
 }
-async function showRun(id) {
+async function showRun(id,panelId="run-panel") {
   const run=await api(path(`/runs/${id}`));
-  details($("run-panel"),[["运行 ID",run.id],["Request ID",run.request_id],["状态 / 错误",`${run.state} / ${run.error_code || "无"}`],["客户端模式",run.model_mode],["invoke 尝试（不代表供应商调用）",run.model_attempts],["输入 Token（本地估算）",run.estimated_input_tokens],["预留输出 Token",run.estimated_output_tokens],["检索 / 生成 / 总耗时（ms）",[run.retrieval_ms,run.generation_ms,run.total_ms].map(x=>Number(x).toFixed(1)).join(" / ")],["usage 来源",run.usage_source],["供应商 usage / 实际费用","未接入 / 未提供"],["外部模型调用","0（本机 Fake 模式）"]]);
+  const usage=run.actual_usage, live=run.model_mode==="local_deepseek";
+  details($(panelId),[["运行 ID",run.id],["Request ID",run.request_id],["状态 / 错误",`${run.state} / ${run.error_code || "无"}`],["客户端模式",run.model_mode],["invoke 尝试（不代表供应商调用）",run.model_attempts],["输入 Token（本地估算）",run.estimated_input_tokens],["输出 Token（本地估算）",run.estimated_output_tokens],["检索 / 生成 / 总耗时（ms）",[run.retrieval_ms,run.generation_ms,run.total_ms].map(x=>Number(x).toFixed(1)).join(" / ")],["usage 来源",run.usage_source],["供应商 Token 回执（输入 / 输出 / 总计）",usage ? `${usage.input_tokens} / ${usage.output_tokens} / ${usage.total_tokens}` : "未提供；不能按零计算"],["本次费用预留（非账单）",run.reserved_cny===undefined ? "未提供" : `¥${run.reserved_cny}`],["回执按高峰价保守估算（非账单）",run.receipt_priced_upper_estimate_cny===undefined || run.receipt_priced_upper_estimate_cny===null ? "未提供" : `¥${run.receipt_priced_upper_estimate_cny}`],["供应商实际费用","未提供"],["外部请求预留尝试",live ? `${run.external_model_attempts ?? "未知"}（不等于供应商收到）` : "0（本机 Fake 模式）"]]);
 }
 function resetUpload() { state.update=null;state.uploadPending=null;$("upload-heading").textContent="接入知识文档";$("upload-submit").textContent="提交索引任务";$("upload-state").textContent="新文档";$("cancel-update").hidden=true;$("upload").reset(); }
 function renderDocuments(docs,role) {
@@ -121,12 +140,14 @@ $("example-question").addEventListener("click",()=>{$("question").value="扫描�
 $("new-chat").addEventListener("submit",event=>{event.preventDefault();task(async()=>{if(!state.workspace)throw new Error("请先选择有权访问的空间。");const chat=await api(path("/conversations"),{title:$("chat-title").value});state.chat=chat.id;await refresh();tab("chat");notice("已建立本人私有会话。管理员不能越权读取。");});});
 $("ask").addEventListener("submit",event=>{event.preventDefault();task(async()=>{
   if(!state.chat)throw new Error("请先新建或选择会话。");const question=$("question").value.trim();if(!question)throw new Error("请输入问题。");
+  if(!await confirmModelRequest())return;
   if(!state.pending || state.pending.chat!==state.chat || state.pending.question!==question)state.pending={chat:state.chat,question,key:uid()};
+  notice(state.session?.model_mode==="local_deepseek" ? "正在请求 DeepSeek，请勿重复发送；失败不自动重试…" : "正在选择原文…");
   try {await api(path(`/conversations/${state.chat}/messages`),{question,idempotency_key:state.pending.key});state.pending=null;$("question").value="";await refresh();notice("已保存完整问答轮次。请核对原文，不将摘录当作经过语义验证的结论。");}
-  catch(error){if(error.received)state.pending=null;throw error;}
+  catch(error){if(error.received)state.pending=null;try{await refreshModel();}catch{}throw error;}
 });});
 $("upload-file").addEventListener("change",()=>task(async()=>{const file=$("upload-file").files[0];if(!file)return;if(file.size>256000 || !/\.(txt|md|markdown)$/i.test(file.name))throw new Error("只支持最大 256000 字节的 TXT / Markdown。");const text=new TextDecoder("utf-8",{fatal:true}).decode(await file.arrayBuffer());$("upload-filename").value=file.name;$("upload-title").value=file.name.replace(/\.[^.]+$/,"");$("upload-content").value=text;}));
 $("upload").addEventListener("submit",event=>{event.preventDefault();task(async()=>{const text=$("upload-content").value;if(new TextEncoder().encode(text).length>256000)throw new Error("正文超过 256000 字节。");const suffix=state.update?`/documents/${state.update}/versions`:"/documents",payload={title:$("upload-title").value,filename:$("upload-filename").value,content_text:text},fingerprint=JSON.stringify([state.workspace,suffix,payload]);if(state.uploadPending?.fingerprint!==fingerprint)state.uploadPending={fingerprint,key:uid()};await api(path(suffix),{...payload,idempotency_key:state.uploadPending.key});resetUpload();await refresh();notice("索引任务已创建。点击“处理下一个任务”后发布；旧版本在成功发布前继续可用。");});});
 $("cancel-update").addEventListener("click",resetUpload);
 $("process-job").addEventListener("click",()=>task(async()=>{const result=await api(path("/jobs/process-next"),{});await refresh();notice(result.job?`任务 ${result.job.id}：${labels[result.job.state] || result.job.state}${result.job.error_code?` / ${result.job.error_code}`:""}`:"没有可领取任务；执行中的任务须等待租约过期后才能重领。");}));
-task(async()=>{if(!state.token){lock();return;}const session=await api("/api/session");$("identity").textContent=session.identity.subject;state.workspaces=await api("/api/workspaces");$("workspace").replaceChildren(...state.workspaces.map(x=>{const option=el("option",x.name);option.value=x.id;return option;}));state.workspace=state.workspaces[0]?.id || null;$("workspace").disabled=false;$("app").hidden=false;$("locked").hidden=true;await refresh();});
+task(async()=>{if(!state.token){lock();return;}const session=await api("/api/session");renderModel(session);$("identity").textContent=session.identity.subject;state.workspaces=await api("/api/workspaces");$("workspace").replaceChildren(...state.workspaces.map(x=>{const option=el("option",x.name);option.value=x.id;return option;}));state.workspace=state.workspaces[0]?.id || null;$("workspace").disabled=false;$("app").hidden=false;$("locked").hidden=true;await refresh();});

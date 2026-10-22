@@ -12,6 +12,7 @@ GitHub：[kekevot233/supportops](https://github.com/kekevot233/supportops)。
 
 - 文档：MD/TXT 接入、持久化任务、失败重试、版本原子发布、删除与历史引用。
 - 知识问答：空间权限、私有会话、原文证据、反馈和运行诊断；默认使用离线 Fake 选择器。
+- 工单助手：本人提交、引用建议、人工采纳或接管、处理记录与解决状态；不自动执行修复，见 [P6a](docs/supportops/P6_TICKETS.md)。
 - 工程底座：统一 Agent/工具接口、记忆与 RAG、完整请求预算、失败不提交对话历史。
 - 可复现评测：区分检索、回答质量、权限/事务和浏览器验收，不以单元测试代替模型质量。
 
@@ -54,7 +55,9 @@ python -m supportops serve --enable-demo --profile admin --port 8765 --open-brow
 
 Linux/macOS 可将循环替换为 `for i in $(seq 1 10); do python -m supportops demo --enable-demo --profile admin work helloagent; done`。
 服务只监听 `127.0.0.1`；打开完整临时链接，不要分享、截图或转发其中的会话凭据。
-网页仍为 `fake_extractive`，能验证引用流程，不能据此判断语义理解、拒答或抗注入能力。
+上述 `serve` 网页仍为 `fake_extractive`，能验证引用流程，不能据此判断语义理解、拒答或抗注入能力。
+真实 DeepSeek 网页另用显式 `serve-live` 入口，包含外发确认、独立公开资料库与累计费用限额；
+启动命令和授权边界见 [真实本机工作台](docs/supportops/P5_LIVE_WORKBENCH.md)。本轮仅完成模拟验证，未发起付费请求。
 运行时资料写入被忽略的 `outputs/`。SupportOps 需从仓库根目录运行，未包含在框架 wheel 中。
 
 ![本机文档与任务工作台](docs/assets/supportops-documents.png)
@@ -68,11 +71,16 @@ Linux/macOS 可将循环替换为 `for i in $(seq 1 10); do python -m supportops
 | 公开检索开发集 | 25/25，Recall@5=1.0，MRR@5=0.94 | 不等于回答准确率 |
 | 完整 Fake 回答开发集 | 20/32；拒答 0/5，污染 0/2 | 引用原文一致不等于结论有依据 |
 | 授权 DeepSeek 三题试跑 | 3/3，同批 Fake 1/3 | 非盲测，不等于完整评测或生产验收 |
+| 授权 DeepSeek 完整开发集对照 | 30/32，同批 Fake 20/32；拒答 5/5、污染 2/2 | 两题事实覆盖不足；开发集通过比例不是生产准确率 |
 | 本机浏览器工程检查 | 13 组 | 不替代模型语义/安全评测 |
 
 结果来自 10 份人工整理的公开项目文档；详见 [资料来源](data/supportops/README.md)、
 [完整阶段与结果索引](docs/supportops/README.md)、[真实试跑记录](docs/supportops/P5_LIVE_PILOT.md)。
 真实试跑仅用 Hashing；未调用在线 Embedding，费用估算不是供应商账单。
+完整对照见 [P5c-3 结果与预算账本](docs/supportops/P5_FULL_REGRESSION.md)：累计保守预留
+3.716160/5 元，该轮独立用量 65273 Token；默认网页仍为 Fake，不自动追加真实实验。
+后续 [完整性与保留集](docs/supportops/P5_ANSWER_COMPLETENESS.md) 已离线实现：保留两题原判分，
+新增显式可选提示词与独立合成保留集；尚未验证新版真实效果，不把 30/32 改成 32/32。
 
 ## 测试与发布
 

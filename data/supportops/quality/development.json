@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "dataset_id": "supportops-completeness-development-v1",
+  "split": "development_smoke",
+  "cases": [
+    {"id":"RET-81","category":"answerable","question":"重复摄取同一个文档 ID 时默认会怎样？要替换应传哪个参数；允许替换且正文相同时返回什么？","expected_status":"answered","expected_document_ids":["kb-ingestion"],"expected_fragments":["默认拒绝","replace=True","unchanged"]},
+    {"id":"RET-82","category":"answerable","question":"EpisodicMemory 重启后，SQLite 正文、内存向量库与 Qdrant 索引分别有什么恢复或保存边界？","expected_status":"answered","expected_document_ids":["kb-memory"],"expected_fragments":["恢复正文","内存向量库需要重建","Qdrant 后端由服务保存"]}
+  ]
+}

@@ -66,7 +66,7 @@ class SeedManifest(BaseModel):
     schema_version: Literal[1]
     corpus_id: str = Field(min_length=1)
     as_of: date
-    origin: Literal["curated_project_documentation"]
+    origin: Literal["curated_project_documentation", "synthetic_support_fixture"]
     documents: list[SeedDocumentSpec] = Field(min_length=1, max_length=100)
 
 
@@ -77,7 +77,8 @@ class SeedCorpus:
     sha256: str
 
 
-def load_seed_corpus(corpus_dir: Path | None = None) -> SeedCorpus:
+def load_seed_corpus(corpus_dir: Path | None = None, *, source_prefix="data/supportops/corpus") -> SeedCorpus:
+    validate_relative_path(source_prefix)
     root = (corpus_dir or DEFAULT_DATA_ROOT / "corpus").resolve()
     manifest = SeedManifest.model_validate_json(read_small_text(root / "manifest.json"))
     ids = [entry.id for entry in manifest.documents]
@@ -98,7 +99,7 @@ def load_seed_corpus(corpus_dir: Path | None = None) -> SeedCorpus:
             },
         )
         # 不把本机绝对路径作为可展示引用。
-        document = document.model_copy(update={"source": f"data/supportops/corpus/{entry.path}"})
+        document = document.model_copy(update={"source": f"{source_prefix}/{entry.path}"})
         documents.append(document)
     canonical = json.dumps(
         {"manifest": manifest.model_dump(mode="json"),

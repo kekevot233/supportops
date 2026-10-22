@@ -12,9 +12,10 @@ from uuid import uuid4
 
 from .errors import SupportOpsError
 from .chat_schema import CHAT_SCHEMA, CHAT_TABLES
+from .ticket_schema import TICKET_SCHEMA, TICKET_TABLES
 
 APPLICATION_ID = 0x53555050
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _SCHEMA = (
     """CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)""",
@@ -82,7 +83,8 @@ _P2_SCHEMA = (
         FOREIGN KEY(workspace_id,job_id) REFERENCES ingestion_jobs(workspace_id,id))""",
 )
 _V2_TABLES = _V1_TABLES | {"document_originals", "indexed_chunks", "document_tombstones", "job_leases"}
-_TABLES = _V2_TABLES | CHAT_TABLES
+_V3_TABLES = _V2_TABLES | CHAT_TABLES
+_TABLES = _V3_TABLES | TICKET_TABLES
 
 
 def utc_now() -> str:
@@ -131,17 +133,21 @@ class ApplicationDatabase:
                 "SELECT type,name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").fetchall()
             tables = {row["name"] for row in objects if row["type"] == "table"}
             if app_id == 0 and version == 0 and not objects:
-                for statement in (*_SCHEMA, *_P2_SCHEMA, *CHAT_SCHEMA):
+                for statement in (*_SCHEMA, *_P2_SCHEMA, *CHAT_SCHEMA, *TICKET_SCHEMA):
                     connection.execute(statement)
                 connection.execute(f"PRAGMA application_id={APPLICATION_ID}")
                 connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
             elif app_id == APPLICATION_ID and version == 1 and tables == _V1_TABLES:
                 # 唯一已知的附加迁移；DDL 与版本标记处于同一事务，不重建旧表或重置权限。
-                for statement in (*_P2_SCHEMA, *CHAT_SCHEMA):
+                for statement in (*_P2_SCHEMA, *CHAT_SCHEMA, *TICKET_SCHEMA):
                     connection.execute(statement)
                 connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
             elif app_id == APPLICATION_ID and version == 2 and tables == _V2_TABLES:
-                for statement in CHAT_SCHEMA:
+                for statement in (*CHAT_SCHEMA, *TICKET_SCHEMA):
+                    connection.execute(statement)
+                connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+            elif app_id == APPLICATION_ID and version == 3 and tables == _V3_TABLES:
+                for statement in TICKET_SCHEMA:
                     connection.execute(statement)
                 connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
             elif app_id != APPLICATION_ID or version != SCHEMA_VERSION or tables != _TABLES:

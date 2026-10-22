@@ -1,0 +1,18 @@
+.ticket-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:22px;align-items:start}
+.ticket-budget{font-size:11px;line-height:1.8;padding:10px 14px;background:#eef5ef;border-radius:6px;margin:0 0 18px}
+.ticket-sidebar{display:grid;gap:18px}.ticket-form{display:grid;gap:13px;padding:20px}
+.ticket-form label{display:grid;gap:7px;font-size:12px;color:#506d5a}
+.ticket-form small,.ticket-meta small{font-size:10px;line-height:1.7;color:#7c9082}
+.ticket-list{padding:12px;display:grid;gap:8px;max-height:460px;overflow-y:auto}
+.ticket-row{display:block;width:100%;text-align:left;background:#fff;border:1px solid #e1e9e2;color:#294e38;overflow-wrap:anywhere}
+.ticket-row.selected{background:#edf5ee;border-color:#b4ccba}.ticket-row small{display:block;margin-top:6px;font-size:10px;color:#6d8474}
+.ticket-detail{padding:22px;overflow-wrap:anywhere}.ticket-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px}
+.ticket-description,.ticket-answer,.ticket-timeline p{white-space:pre-wrap;line-height:1.9;font-size:12px}
+.ticket-detail h3{font-size:14px;margin:24px 0 13px}.ticket-suggestion{padding:18px;border:1px solid #dce8de;border-radius:8px;margin:16px 0;background:#fcfefb}
+.ticket-suggestion strong{font-size:12px}.ticket-suggestion button,.ticket-detail .form-actions button{font-size:11px}
+.ticket-timeline{padding-left:22px}.ticket-timeline li{padding:0 0 12px 10px;border-left:1px solid #d5e3d8;list-style:none}
+.ticket-timeline strong{font-size:12px}.ticket-timeline small{display:block;color:#8c9d91;font-size:10px;margin-top:5px}
+.ticket-detail>.ticket-form{padding:0}.ticket-inspectors{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
+.ticket-inspectors .panel-body{max-height:420px;overflow-y:auto}
+@media(max-width:1100px){.ticket-layout{grid-template-columns:1fr}.ticket-sidebar{grid-template-columns:1fr 1fr}.ticket-inspectors{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.ticket-sidebar,.ticket-inspectors{grid-template-columns:1fr}.ticket-detail{padding:16px}.ticket-layout{gap:16px}}

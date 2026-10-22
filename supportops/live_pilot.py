@@ -117,12 +117,15 @@ def _reservation(body):
 class PilotSpendGuard:
     """只允许本地干跑确定的消息序列；失败/未知用量后不发送剩余请求。"""
 
-    def __init__(self, bodies):
-        if not 1 <= len(bodies) <= 3:
+    def __init__(self, bodies, *, max_requests=3, budget_cny=BUDGET_CNY):
+        if type(max_requests) is not int or not 1 <= max_requests <= 32 or not 1 <= len(bodies) <= max_requests:
+            raise SupportOpsError("EVALUATION_LIMIT_EXCEEDED")
+        self.budget_cny = Decimal(budget_cny)
+        if not self.budget_cny.is_finite() or not 0 < self.budget_cny <= BUDGET_CNY:
             raise SupportOpsError("EVALUATION_LIMIT_EXCEEDED")
         self.plan = [_reservation(body) for body in bodies]
         self.reserved = sum((Decimal(row["reserved_cny"]) for row in self.plan), Decimal("0"))
-        if self.reserved > BUDGET_CNY:
+        if self.reserved > self.budget_cny:
             raise SupportOpsError("EVALUATION_LIMIT_EXCEEDED")
         self.records, self.stopped, self._lock = [], False, RLock()
         self.event_sink = None
@@ -176,7 +179,7 @@ class PilotSpendGuard:
                         Decimal(row["output_tokens"]) * OUTPUT_CNY_PER_MILLION for row in known), Decimal("0")) / 1_000_000
         return {"authorized_budget_cny": str(TOTAL_BUDGET_CNY),
                 "prior_unknown_cost_reserved_cny": str(PRIOR_UNKNOWN_RESERVE_CNY),
-                "remaining_budget_for_this_round_cny": str(BUDGET_CNY),
+                "remaining_budget_for_this_round_cny": str(self.budget_cny),
                 "pricing_checked_on": "2026-10-17", "pricing_url": PRICING_URL,
                 "input_cny_per_million": str(INPUT_CNY_PER_MILLION), "output_cny_per_million": str(OUTPUT_CNY_PER_MILLION),
                 "reservation_method": "four_times_request_utf8_bytes_plus_4096_template_tokens",

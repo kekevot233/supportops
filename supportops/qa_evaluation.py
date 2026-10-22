@@ -9,7 +9,7 @@ from pathlib import Path
 from hello_agents import DocumentRAGResult, RequestBudgetConfig, RequestBudgetManager
 from hello_agents.embeddings.base import normalize_vector
 
-from .answering import AnswerEngine, SYSTEM_RULES
+from .answering import AnswerEngine, DEFAULT_PROMPT_PROFILE, system_rules_for
 from .document_index import IndexEntry
 from .documents import DocumentService
 from .errors import SupportOpsError
@@ -96,15 +96,16 @@ def score_answer(case: AnswerCase, generation, retrieval: DocumentRAGResult) -> 
 
 
 def evaluate_answers(corpus: SeedCorpus, dataset: AnswerDataset, *, runtime: EvaluationRuntime | None = None,
-                     allow_external_calls=False) -> dict:
+                     allow_external_calls=False, prompt_profile=DEFAULT_PROMPT_PROFILE) -> dict:
     validate_answer_dataset(corpus, dataset)
+    system_rules_for(prompt_profile)  # Reject unknown profiles before any factories.
     runtime = runtime or fake_runtime()
     if not isinstance(runtime, EvaluationRuntime):
         raise ValueError("需要显式 EvaluationRuntime。")
     index, llm = runtime.open(allow_external_calls=allow_external_calls)
     report = None
     try:
-        report = _evaluate_open_runtime(corpus, dataset, runtime, index, llm)
+        report = _evaluate_open_runtime(corpus, dataset, runtime, index, llm, prompt_profile=prompt_profile)
         if runtime.telemetry is not None:
             try:
                 report["provider_calls"] = runtime.telemetry()
@@ -126,9 +127,10 @@ def evaluate_answers(corpus: SeedCorpus, dataset: AnswerDataset, *, runtime: Eva
             report["cleanup_warnings"] = warnings
 
 
-def _evaluate_open_runtime(corpus, dataset, runtime, index, llm):
+def _evaluate_open_runtime(corpus, dataset, runtime, index, llm, *, prompt_profile=DEFAULT_PROMPT_PROFILE):
     engine = AnswerEngine(llm, mode="fake_extractive" if runtime.spec.execution == "offline_fake" else "injected",
-                          budget=RequestBudgetManager(RequestBudgetConfig(output_tokens=runtime.spec.output_tokens)))
+                          budget=RequestBudgetManager(RequestBudgetConfig(output_tokens=runtime.spec.output_tokens)),
+                          prompt_profile=prompt_profile)
     cases, cache = [], {}
     build_attempts = query_attempts = 0
     for case in dataset.cases:
@@ -198,7 +200,8 @@ def _evaluate_open_runtime(corpus, dataset, runtime, index, llm):
             "runtime": runtime.spec.model_dump(), "settings_source": "explicit_trusted_factories_not_provider_attestation",
             "corpus_id": corpus.manifest.corpus_id, "corpus_sha256": corpus.sha256,
             "dataset_id": dataset.dataset_id, "dataset_sha256": canonical_sha256(dataset.model_dump(mode="json")),
-            "split": dataset.split, "system_rules_sha256": hashlib.sha256(SYSTEM_RULES.encode("utf-8")).hexdigest(),
+            "split": dataset.split, "prompt_profile": prompt_profile,
+            "system_rules_sha256": hashlib.sha256(engine.system_rules.encode("utf-8")).hexdigest(),
             "pipeline": {"profile": index.profile, "dimension": index.dimension, "top_k": 5,
                          "chunk_size": index.chunker.chunk_size, "chunk_overlap": index.chunker.chunk_overlap,
                          "vector_weight": index.reranker.vector_weight, "candidate_multiplier": 5,

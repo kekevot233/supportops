@@ -54,7 +54,7 @@ class AnswerCase(AppModel):
 class AnswerDataset(AppModel):
     schema_version: Literal[1]
     dataset_id: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,99}$")
-    split: Literal["development_smoke"]
+    split: Literal["development_smoke", "holdout"]
     cases: list[AnswerCase] = Field(min_length=1, max_length=100)
 
 

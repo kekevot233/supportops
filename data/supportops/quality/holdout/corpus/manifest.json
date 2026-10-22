@@ -1,0 +1,11 @@
+{
+  "schema_version":1,
+  "corpus_id":"supportops-synthetic-holdout-v1",
+  "as_of":"2026-10-19",
+  "origin":"synthetic_support_fixture",
+  "documents":[
+    {"id":"kb-exercise-release","path":"release.md","title":"虚构演练：灰度发布与回滚规则","source_refs":["data/supportops/quality/README.md"]},
+    {"id":"kb-exercise-access","path":"access.md","title":"虚构演练：临时授权与人工确认","source_refs":["data/supportops/quality/README.md"]},
+    {"id":"kb-exercise-diagnostics","path":"diagnostics.md","title":"虚构演练：只读诊断证据规范","source_refs":["data/supportops/quality/README.md"]}
+  ]
+}

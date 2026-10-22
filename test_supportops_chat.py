@@ -19,7 +19,7 @@ from supportops import ApplicationDatabase, AnswerEngine, ChatService, DemoIdent
 from supportops.__main__ import main
 from supportops.api import SupportOpsAPI
 from supportops.chat import HIDDEN_ANSWER
-from supportops.database import APPLICATION_ID, _SCHEMA, _P2_SCHEMA
+from supportops.database import APPLICATION_ID, SCHEMA_VERSION, _SCHEMA, _P2_SCHEMA
 from supportops.models import Identity
 
 
@@ -450,7 +450,7 @@ class TestChatMigrationAndCLI(unittest.TestCase):
                 self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
                 self.assertIsNone(connection.execute("SELECT 1 FROM sqlite_master WHERE name='conversations'").fetchone())
             with ApplicationDatabase(path) as database, database.transaction() as connection:
-                self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
+                self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], SCHEMA_VERSION)
                 self.assertEqual(connection.execute("SELECT id FROM users").fetchone()[0], "existing")
 
     def test_cli_creates_persistent_chat_and_marks_fake_answer_mode(self):

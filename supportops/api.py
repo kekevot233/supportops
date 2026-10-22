@@ -12,6 +12,7 @@ from .documents import DocumentService
 from .errors import SupportOpsError
 from .identity import DemoIdentityProvider
 from .workspaces import WorkspaceService
+from .tickets import TicketService
 
 MAX_BODY = 300_000
 
@@ -25,6 +26,7 @@ class SupportOpsAPI:
         self.workspaces = WorkspaceService(database, identity_provider)
         self.documents = DocumentService(database, identity_provider)
         self.chats = ChatService(database, identity_provider, engine, documents=self.documents)
+        self.tickets = TicketService(database, identity_provider, self.chats)
 
     def __call__(self, environ, start_response):
         request_id = new_id("req")
@@ -112,6 +114,24 @@ class SupportOpsAPI:
             raise SupportOpsError("NOT_FOUND")
         workspace, resource = parts[2:4]
         body = self._body(environ) if method in {"POST", "PUT", "DELETE"} else {}
+        if resource == "tickets":
+            if len(parts) == 4:
+                if method == "GET":
+                    return 200, self.tickets.list(credential, workspace, limit=limit)
+                if method == "POST":
+                    return 201, self.tickets.create(credential, workspace, body)
+            if len(parts) == 5 and method == "GET":
+                return 200, self.tickets.get(credential, workspace, parts[4])
+            if len(parts) == 6 and method == "POST":
+                if parts[5] == "suggestions":
+                    return 200, self.tickets.suggest(credential, workspace, parts[4], body, request_id=request_id)
+                if parts[5] in {"accept", "note", "resolve", "start"}:
+                    return 200, self.tickets.operate(credential, workspace, parts[4], parts[5], body)
+            if len(parts) == 8 and parts[5] == "suggestions" and parts[7] == "reconcile" and method == "POST":
+                if body:
+                    raise SupportOpsError("INVALID_REQUEST")
+                return 200, self.tickets.reconcile(credential, workspace, parts[4], parts[6])
+            raise SupportOpsError("NOT_FOUND")
         if resource == "conversations":
             if len(parts) == 4 and method == "POST":
                 return 201, self.chats.create_conversation(credential, workspace, body)

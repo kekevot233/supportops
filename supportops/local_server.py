@@ -18,6 +18,8 @@ from .models import Identity
 
 ASSETS = {"/": ("index.html", "text/html; charset=utf-8"),
           "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+          "/tickets.js": ("tickets.js", "text/javascript; charset=utf-8"),
+          "/tickets.css": ("tickets.css", "text/css; charset=utf-8"),
           "/styles.css": ("styles.css", "text/css; charset=utf-8")}
 SECURITY_HEADERS = [
     ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
@@ -51,7 +53,7 @@ class LocalSessionIdentityProvider:
 
 
 class LocalWorkbench:
-    def __init__(self, database, identities, *, port, engine=None):
+    def __init__(self, database, identities, *, port, engine=None, live_budget=None):
         if not isinstance(identities, LocalSessionIdentityProvider):
             raise SupportOpsError("DEMO_DISABLED")
         if type(port) is not int or not 1 <= port <= 65535:
@@ -59,6 +61,10 @@ class LocalWorkbench:
         self.origin = f"http://127.0.0.1:{port}"
         self.authority = f"127.0.0.1:{port}"
         self.identities = identities
+        self.live_budget = live_budget
+        self.model_mode = "local_deepseek" if live_budget is not None else "fake_extractive"
+        if live_budget is not None and (engine is None or engine.mode != "local_deepseek"):
+            raise SupportOpsError("INVALID_REQUEST")
         self.api = SupportOpsAPI(database, identities, engine or AnswerEngine(DemoQuoteLLM(), mode="fake_extractive"),
                                  allow_local_sessions=True)
 
@@ -75,6 +81,11 @@ class LocalWorkbench:
                     or environ.get("HTTP_SEC_FETCH_SITE", "none") not in {"none", "same-origin"}):
                 raise SupportOpsError("FORBIDDEN")
             path, method = environ.get("PATH_INFO"), environ.get("REQUEST_METHOD")
+            if self.live_budget is not None and method not in {"GET", "HEAD"}:
+                # 首版真实模式只读资料；HTTP 层也拒绝资料变更，不依赖页面隐藏按钮。
+                parts = path.split("/") if isinstance(path, str) else []
+                if len(parts) < 5 or parts[4] not in {"conversations", "answers", "tickets"}:
+                    raise SupportOpsError("WEB_PUBLIC_SCOPE_REQUIRED")
             if path in ASSETS and method == "GET":
                 filename, content_type = ASSETS[path]
                 content = (Path(__file__).parent / "web" / "dist" / filename).read_bytes()
@@ -84,8 +95,11 @@ class LocalWorkbench:
                 credential = header[7:] if header.startswith("Bearer ") else None
                 identity = self.api.workspaces._identity(credential)
                 if path == "/api/session" and method == "GET":
-                    payload = {"identity": identity.model_dump(), "mode": "local_demo", "model_mode": "fake_extractive",
-                               "external_model_calls": 0, "expires_in_hours_max": 8}
+                    payload = {"identity": identity.model_dump(), "mode": "local_demo", "model_mode": self.model_mode,
+                               "external_model_calls": None if self.live_budget else 0, "expires_in_hours_max": 8}
+                    if self.live_budget is not None:
+                        payload.update(model_id="deepseek-flash", data_scope="public_seed_and_user_conversation",
+                            documents_read_only=True, financial_guard=self.live_budget.session_view(), online_embedding=False)
                 else:
                     parts = path.split("/")
                     if len(parts) != 6 or parts[1:3] != ["api", "workspaces"] or method != "POST":
